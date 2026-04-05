@@ -2,7 +2,7 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
    Name = "ploppyspoofer",
-   LoadingTitle = "version 0.9.4",
+   LoadingTitle = "version 0.9.7",
    LoadingSubtitle = "wiggleguy",
    ConfigurationSaving = { Enabled = true, FolderName = "ploppyconfigs", FileName = "version094" }
 })
