@@ -12,6 +12,16 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local lp = Players.LocalPlayer
 
+local ActiveTracks = {}
+local ActiveSound = nil
+local NameLoop = false
+local DispLoop = false
+local TargetName = "???"
+local TargetDisp = "???"
+local currentEquipTarget = "Guest"
+local currentEquipSkin = ""
+local emoteToPlay = ""
+
 local function StopAllEmotes()
     for _, track in ipairs(ActiveTracks) do track:Stop() end
     if ActiveSound then ActiveSound:Stop(); ActiveSound:Destroy() end
@@ -24,11 +34,7 @@ end)
 
 task.spawn(function()
     while true do
-        if NameLoop then
-            pcall(function()
-                lp.Name = TargetName
-            end)
-        end
+        if NameLoop then pcall(function() lp.Name = TargetName end) end
         if DispLoop then
             pcall(function()
                 lp.DisplayName = TargetDisp
@@ -41,7 +47,6 @@ task.spawn(function()
     end
 end)
 
--- [[ DYNAMIC LIST GENERATION ]] --
 local emoteList = {}
 for _, mod in ipairs(ReplicatedStorage.Assets.Emotes:GetDescendants()) do
     if mod:IsA("ModuleScript") then table.insert(emoteList, mod.Name) end
@@ -54,7 +59,6 @@ pcall(function()
     for _, s in ipairs(ReplicatedStorage.Assets.Survivors:GetChildren()) do table.insert(survList, s.Name) end
 end)
 
--- [[ TABS ]] --
 local UnlocksTab = Window:CreateTab("Visual Unlock All", 4483362458)
 local EmoteTab = Window:CreateTab("Emotes", 4483362458)
 local StatsTab = Window:CreateTab("Stats", 4483362458)
@@ -63,52 +67,30 @@ local SpooferTab = Window:CreateTab("Spoofers", 4483362458)
 UnlocksTab:CreateSection("Unlock All")
 
 UnlocksTab:CreateButton({
-   Name = "Unlock All Killers",
+   Name = "Unlock All (yes i'm being fr)",
    Callback = function()
-      local pKillers = lp:WaitForChild("PlayerData"):WaitForChild("Purchased"):WaitForChild("Killers")
+      local data = lp:WaitForChild("PlayerData"):WaitForChild("Purchased")
       local count = 0
       for _, name in ipairs(killerList) do
-         if not pKillers:FindFirstChild(name) then
-            Instance.new("StringValue", pKillers).Name = name; count = count + 1
-         end
+         if not data.Killers:FindFirstChild(name) then Instance.new("StringValue", data.Killers).Name = name; count = count + 1 end
       end
-      Rayfield:Notify({Title = "ploppyspoofer", Content = "unlocked " .. count .. " killers", Duration = 3})
-   end,
-})
-
-UnlocksTab:CreateButton({
-   Name = "Unlock All Survivors",
-   Callback = function()
-      local pSurv = lp:WaitForChild("PlayerData"):WaitForChild("Purchased"):WaitForChild("Survivors")
-      local count = 0
       for _, name in ipairs(survList) do
-         if not pSurv:FindFirstChild(name) then
-            Instance.new("StringValue", pSurv).Name = name; count = count + 1
-         end
+         if not data.Survivors:FindFirstChild(name) then Instance.new("StringValue", data.Survivors).Name = name; count = count + 1 end
       end
-      Rayfield:Notify({Title = "ploppyspoofer", Content = "unlocked " .. count .. " survivors", Duration = 3})
-   end,
-})
-
-UnlocksTab:CreateButton({
-   Name = "unlock all",
-   Callback = function()
-      local purchased = lp:WaitForChild("PlayerData"):WaitForChild("Purchased"):WaitForChild("Skins")
       local skinsRoot = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Skins")
-      local count = 0
       for _, skin in ipairs(skinsRoot:GetDescendants()) do
-         if (skin:IsA("Folder") or skin:IsA("Model")) and not purchased:FindFirstChild(skin.Name) then
-            Instance.new("StringValue", purchased).Name = skin.Name; count = count + 1
+         if (skin:IsA("Folder") or skin:IsA("Model")) and not data.Skins:FindFirstChild(skin.Name) then
+            Instance.new("StringValue", data.Skins).Name = skin.Name; count = count + 1
          end
       end
-      Rayfield:Notify({Title = "ploppyspoofer", Content = "unlocked " .. count .. " skins!", Duration = 3})
+      Rayfield:Notify({Title = "ploppyspoofer", Content = "Unlocked " .. count .. " items!", Duration = 3})
    end,
 })
 
-UnlocksTab:CreateSection("skin equip")
+UnlocksTab:CreateSection("Skin Equip (Deep Update)")
 
 UnlocksTab:CreateDropdown({
-   Name = "select killer/survivor",
+   Name = "Select Character",
    Options = (function() 
       local combined = {}
       for _,v in ipairs(killerList) do table.insert(combined, v) end
@@ -119,29 +101,34 @@ UnlocksTab:CreateDropdown({
 })
 
 UnlocksTab:CreateInput({
-   Name = "OR type manually",
-   PlaceholderText = "name here",
-   Callback = function(t) currentEquipTarget = t end,
-})
-
-UnlocksTab:CreateInput({
-   Name = "skin name",
+   Name = "Skin Name",
    PlaceholderText = "e.g. Milestone100Guest1337",
    Callback = function(t) currentEquipSkin = t end,
 })
 
 UnlocksTab:CreateButton({
-   Name = "Force Equip",
+   Name = "Force Equip Skin",
    Callback = function()
       local equipped = lp:WaitForChild("PlayerData"):WaitForChild("Equipped"):WaitForChild("Skins")
-      local val = equipped:FindFirstChild(currentEquipTarget) or Instance.new("StringValue", equipped)
-      val.Name = currentEquipTarget; val.Value = currentEquipSkin
+      
+      if equipped:FindFirstChild(currentEquipTarget) then
+          equipped:FindFirstChild(currentEquipTarget):Destroy()
+      end
+      
+      task.wait(0.1)
+      
+      local val = Instance.new("StringValue")
+      val.Name = currentEquipTarget
+      val.Value = currentEquipSkin
+      val:SetAttribute("Skin", currentEquipSkin)
       val:SetAttribute("UniqueId", "00000000-0000-0000-0000-000000000000")
-      Rayfield:Notify({Title = "Success", Content = "Forced " .. currentEquipSkin .. " on " .. currentEquipTarget, Duration = 2})
+      val.Parent = equipped
+      
+      Rayfield:Notify({Title = "Success", Content = "Injected Skin: " .. currentEquipSkin, Duration = 2})
    end,
 })
 
-EmoteTab:CreateSection("emotes")
+EmoteTab:CreateSection("Emotes")
 EmoteTab:CreateButton({
    Name = "unlock every emote",
    Callback = function()
@@ -157,7 +144,6 @@ EmoteTab:CreateButton({
 })
 
 EmoteTab:CreateSection("emote player")
-local emoteToPlay = ""
 
 local function PlayEmoteAction(name)
     local module = ReplicatedStorage.Assets.Emotes:FindFirstChild(name, true)
@@ -170,14 +156,11 @@ local function PlayEmoteAction(name)
             local a = Instance.new("Animation") a.AnimationId = id
             local t = char.Humanoid.Animator:LoadAnimation(a)
             t.Priority = Enum.AnimationPriority.Action4
-            t.Looped = data.SFXProperties and data.SFXProperties.Looped or false
             t:Play() table.insert(ActiveTracks, t)
         end
         if data.SFX then
             ActiveSound = Instance.new("Sound", char.HumanoidRootPart)
-            ActiveSound.SoundId = data.SFX
-            if data.SFXProperties then for p,v in pairs(data.SFXProperties) do pcall(function() ActiveSound[p]=v end) end end
-            ActiveSound:Play()
+            ActiveSound.SoundId = data.SFX; ActiveSound:Play()
         end
     end
 end
@@ -188,16 +171,12 @@ EmoteTab:CreateDropdown({
    Callback = function(o) emoteToPlay = o[1] end,
 })
 
-EmoteTab:CreateInput({
-   Name = "OR type emote name",
-   PlaceholderText = "e.g. #Tuffy",
-   Callback = function(t) emoteToPlay = t end,
-})
-
 EmoteTab:CreateButton({
    Name = "play selected (space to stop)",
-   Callback = function() PlayEmoteAction(emoteToPlay) end,
-   Rayfield:Notify({Title = "ploppy spoofer", Content = "sucessfully playing", Duration = 2})
+   Callback = function() 
+        PlayEmoteAction(emoteToPlay) 
+        Rayfield:Notify({Title = "ploppy spoofer", Content = "successfully playing", Duration = 2})
+   end,
 })
 
 StatsTab:CreateSection("statistics")
@@ -209,7 +188,7 @@ local statsToChange = {
 
 for n, v in pairs(statsToChange) do
     StatsTab:CreateInput({
-        Name = "Set " .. n, PlaceholderText = "Val: " .. v,
+        Name = "Set " .. n, PlaceholderText = "Value:" .. v,
         Callback = function(t) 
             local s = lp:WaitForChild("PlayerData"):WaitForChild("Stats"):FindFirstChild(n, true)
             if s then s.Value = tonumber(t) or 0 end
@@ -217,7 +196,7 @@ for n, v in pairs(statsToChange) do
     })
 end
 
-SpooferTab:CreateSection("username spoofer (kicks in pubs)")
+SpooferTab:CreateSection("Identity Spoofers")
 
 SpooferTab:CreateInput({
     Name = "target username",
@@ -226,7 +205,6 @@ SpooferTab:CreateInput({
 })
 SpooferTab:CreateToggle({
     Name = "set username",
-    CurrentValue = false,
     Callback = function(v) NameLoop = v end
 })
 
@@ -237,11 +215,10 @@ SpooferTab:CreateInput({
 })
 SpooferTab:CreateToggle({
     Name = "set displayname",
-    CurrentValue = false,
     Callback = function(v) DispLoop = v end
 })
 
-SpooferTab:CreateSection("spoofers")
+SpooferTab:CreateSection("Misc Spoofers")
 
 SpooferTab:CreateButton({
     Name = "VIP giver (visual)",
@@ -250,10 +227,9 @@ SpooferTab:CreateButton({
         local pData = lp:FindFirstChild("PlayerData")
         if pData then
             local vVal = pData:FindFirstChild("VIP", true) or Instance.new("BoolValue", pData)
-            vVal.Name = "VIP"
-            vVal.Value = true
+            vVal.Name = "VIP"; vVal.Value = true
         end
-        Rayfield:Notify({Title = "ploppyspoofer", Content = "u got vip now cool", Duration = 2})
+        Rayfield:Notify({Title = "ploppyspoofer", Content = "VIP gived ", Duration = 2})
     end
 })
 
